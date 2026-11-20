@@ -37,8 +37,7 @@ export function GoogleButton({ cloud, className }: { cloud: Cloud; className?: s
   );
 }
 
-/** Full-screen welcome shown when Firebase is set up and nobody is signed in. */
-export function SignInScreen({ cloud }: { cloud: Cloud }) {
+function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-subtle px-4">
       <div className="anim-fade w-full max-w-[400px] rounded-2xl border border-line bg-bg p-8 text-center shadow-pop sm:p-10">
@@ -49,25 +48,53 @@ export function SignInScreen({ cloud }: { cloud: Cloud }) {
             <span className="absolute right-[3px] top-[3px] size-[9px] rounded-full bg-accent" />
           </span>
         </span>
-        <h1 className="t-h1">ScholarMap</h1>
-        <p className="mx-auto mt-2 max-w-[300px] text-[14px] text-fg-muted">
-          Sign in to keep your research, applications and documents in sync across your devices.
-        </p>
-        <GoogleButton cloud={cloud} className="mt-8 w-full" />
-        <button onClick={cloud.useLocalOnly} className="mt-4 text-[13px] text-fg-muted hover:text-fg">
-          Use on this device only
-        </button>
-        <p className="mt-8 text-[11.5px] leading-relaxed text-fg-faint">
-          Your data is private to your Google account. Nothing is shared or published.
-        </p>
+        {children}
       </div>
     </div>
+  );
+}
+
+/** Full-screen welcome shown when Firebase is set up and nobody is signed in. */
+export function SignInScreen({ cloud }: { cloud: Cloud }) {
+  return (
+    <Card>
+      <h1 className="t-h1">ScholarMap</h1>
+      <p className="mx-auto mt-2 max-w-[300px] text-[14px] text-fg-muted">
+        A private workspace for researching universities, programs and scholarships.
+      </p>
+      <GoogleButton cloud={cloud} className="mt-8 w-full" />
+      <p className="mt-6 text-[12.5px] leading-relaxed text-fg-muted">
+        Invite only — sign in with the Google account your invitation was sent to.
+      </p>
+      <p className="mt-6 text-[11.5px] leading-relaxed text-fg-faint">Everyone’s research is private to their own account.</p>
+    </Card>
+  );
+}
+
+/** Signed in with a Google account that hasn't been invited. */
+export function NoAccessScreen({ cloud }: { cloud: Cloud }) {
+  return (
+    <Card>
+      <h1 className="t-h1">You’re not invited yet</h1>
+      <p className="mx-auto mt-2 max-w-[310px] text-[14px] text-fg-muted">
+        <span className="font-medium text-fg">{cloud.user?.email}</span> doesn’t have access to ScholarMap. Ask the person who shared this link to invite this email address.
+      </p>
+      <div className="mt-8 flex flex-col gap-2">
+        <Button className="h-10 w-full text-[14px]" onClick={() => window.location.reload()}>
+          I’ve been invited — check again
+        </Button>
+        <Button variant="ghost" className="h-10 w-full text-[14px]" onClick={() => void cloud.signOut()}>
+          Use a different Google account
+        </Button>
+      </div>
+    </Card>
   );
 }
 
 const STATUS_COPY: Record<CloudStatus, { label: string; tone: string }> = {
   disabled: { label: "This device only", tone: "bg-fg-faint" },
   "signed-out": { label: "Not signed in", tone: "bg-fg-faint" },
+  "no-access": { label: "No access", tone: "bg-danger" },
   loading: { label: "Connecting…", tone: "bg-warning" },
   synced: { label: "All changes saved", tone: "bg-success" },
   syncing: { label: "Saving…", tone: "bg-warning" },

@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getFirebase, isFirebaseConfigured } from "@/lib/firebase";
+import { checkAccess, type Role } from "@/lib/people";
 import { universities as seedUniversities } from "@/data/universities";
 import { programs as seedPrograms } from "@/data/programs";
 import { scholarships as seedScholarships } from "@/data/scholarships";
@@ -42,12 +43,14 @@ const clean = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const metaOf = (s: SyncableState) => ({ saved: s.saved, compare: s.compare, theme: s.theme });
 
 export type CloudUser = { uid: string; name: string; email: string; photo?: string };
-export type CloudStatus = "disabled" | "loading" | "signed-out" | "synced" | "syncing" | "offline" | "error";
+export type CloudStatus = "disabled" | "loading" | "signed-out" | "no-access" | "synced" | "syncing" | "offline" | "error";
 
 export type Cloud = {
   configured: boolean;
   status: CloudStatus;
   user: CloudUser | null;
+  /** admin = can invite people; member = invited; none = signed in but not invited. */
+  role: Role;
   /** Chose "use on this device only" on the sign-in screen. */
   localOnly: boolean;
   error?: string;
@@ -73,6 +76,7 @@ export function useCloudSync({
 }) {
   const [status, setStatus] = useState<CloudStatus>(isFirebaseConfigured ? "loading" : "disabled");
   const [user, setUser] = useState<CloudUser | null>(null);
+  const [role, setRole] = useState<Role>("none");
   const [error, setError] = useState<string>();
   const [localOnly, setLocalOnly] = useState(false);
 
@@ -329,13 +333,36 @@ export function useCloudSync({
           if (!u) {
             uidRef.current = null;
             setUser(null);
+            setRole("none");
             setStatus("signed-out");
             return;
           }
           uidRef.current = u.uid;
           setUser({ uid: u.uid, name: u.displayName ?? "You", email: u.email ?? "", photo: u.photoURL ?? undefined });
           setStatus("loading");
-          void startListening(u.uid);
+          // Invite-only: admins and invited people get in; everyone else sees "no access".
+          const roleKey = `scholarmap:role:${u.uid}`;
+          checkAccess(u)
+            .then((r) => {
+              try {
+                localStorage.setItem(roleKey, r);
+              } catch {}
+              return r;
+            })
+            .catch(() => {
+              // Offline: trust the last answer from this device, if any
+              let cached: Role | null = null;
+              try {
+                cached = localStorage.getItem(roleKey) as Role | null;
+              } catch {}
+              return cached ?? "none";
+            })
+            .then((r) => {
+              if (uidRef.current !== u.uid) return;
+              setRole(r);
+              if (r === "none") setStatus("no-access");
+              else void startListening(u.uid);
+            });
         });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -371,7 +398,7 @@ export function useCloudSync({
   }, [toast]);
 
   const signOut = useCallback(async () => {
-    await flush();
+    if (initialised.current) await flush();
     const fb = await getFirebase();
     const { signOut: fbSignOut } = await import("firebase/auth");
     await fbSignOut(fb.auth);
@@ -388,8 +415,8 @@ export function useCloudSync({
   }, []);
 
   const cloud = useMemo<Cloud>(
-    () => ({ configured: isFirebaseConfigured, status, user, localOnly, error, signIn, signOut, useLocalOnly }),
-    [status, user, localOnly, error, signIn, signOut, useLocalOnly],
+    () => ({ configured: isFirebaseConfigured, status, user, role, localOnly, error, signIn, signOut, useLocalOnly }),
+    [status, user, role, localOnly, error, signIn, signOut, useLocalOnly],
   );
   // The app waits for the first remote snapshot so you never see stale data flash in.
   const ready = hydrated && status !== "loading";

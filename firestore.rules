@@ -1,19 +1,48 @@
 rules_version = '2';
 
-// ScholarMap: every signed-in Google account gets its own private space at users/{uid}.
-// Nobody can read or write another account's data, and there is nothing outside users/.
+// ScholarMap — invite-only.
+//
+//   admins/{email}      who can invite people. Created by hand in the Firebase console
+//                       (no one can write it from the app).
+//   invites/{email}     people an admin has invited. Their sign-in is accepted only if
+//                       this document exists.
+//   users/{uid}/...     each person's private data. Only that person can read or write it,
+//                       and only while they are an admin or still invited.
+//
+// Emails are stored lower-case and used as document IDs.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(myEmail()));
+    }
+    function isInvited() {
+      return signedIn() && exists(/databases/$(database)/documents/invites/$(myEmail()));
+    }
+
+    match /admins/{email} {
+      allow get: if signedIn() && myEmail() == email;   // "am I an admin?"
+      allow list, write: if false;                       // console only
+    }
+
+    match /invites/{email} {
+      allow get: if isAdmin() || (signedIn() && myEmail() == email);
+      allow list, create, delete: if isAdmin();
+      // Admins can edit invites; an invited person may only record that they joined.
+      allow update: if isAdmin()
+        || (signedIn() && myEmail() == email
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'joinedAt', 'lastSeenAt', 'uid', 'displayName', 'photo']));
+    }
+
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId && (isAdmin() || isInvited());
     }
   }
 }
-
-// Optional extra lock (recommended): only allow YOUR Google account to use the database
-// at all. Paste this version into the Firebase console instead of the one above and put
-// your own email in place of YOUR_EMAIL. Keep the email out of this public repository.
-//
-//   allow read, write: if request.auth != null
-//                      && request.auth.uid == userId
-//                      && request.auth.token.email == "YOUR_EMAIL";

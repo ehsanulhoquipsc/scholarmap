@@ -11,6 +11,7 @@ import {
   ListChecks,
   NotebookPen,
   Settings,
+  Users,
 } from "lucide-react";
 
 export const NAV = [
@@ -38,6 +39,7 @@ export const NAV = [
 ] as const;
 
 export const SETTINGS_NAV = { href: "/settings", label: "Settings", icon: Settings } as const;
+export const PEOPLE_NAV = { href: "/people", label: "People", icon: Users } as const;
 
 export function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";

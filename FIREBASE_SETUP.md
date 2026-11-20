@@ -17,10 +17,11 @@ Everything stays on Firebase's free **Spark** plan — no card needed.
 1. Left menu: **Build → Firestore Database** → **Create database**.
 2. Location: pick one near you (e.g. `asia-south1` / `europe-west`) — this can't be changed later.
 3. Start in **production mode** → **Create**.
-4. Open the **Rules** tab, replace everything with the contents of [`firestore.rules`](firestore.rules)
-   → **Publish**.
-   - Recommended: use the "optional extra lock" version at the bottom of that file with your
-     own email typed in, so only your account can use the database.
+4. Make yourself the admin **first** (the rules in the next step are invite-only):
+   **Data** tab → **+ Start collection** → Collection ID `admins` → **Next** →
+   Document ID = your Google email in lower case (e.g. `you@gmail.com`) →
+   add a field `role` (string) = `owner` → **Save**.
+5. **Rules** tab → replace everything with the contents of [`firestore.rules`](firestore.rules) → **Publish**.
 
 ## 4. Get the web config
 1. Click the ⚙️ next to **Project Overview** → **Project settings**.
@@ -47,6 +48,13 @@ For local development, copy `.env.example` to `.env.local` and fill in the same 
 ## 6. First sign-in
 Open the site → **Continue with Google**. The first time, whatever is saved in that browser is
 copied into your account. On other devices, signing in loads your account's data.
+
+## Inviting people
+Open **People** in the sidebar (only admins see it), enter someone's Google email and click
+**Send invite**, then share the invite message (copy, or open your email app). They open the
+site, click **Continue with Google** with that email, and get their own private workspace.
+Removing someone blocks access immediately; their data is kept if you re-invite them.
+To add another admin, add their email as another document in the `admins` collection.
 
 ## Good to know
 - Works offline; changes sync when you're back online.

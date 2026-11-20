@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Bell, CalendarDays, Compass, LayoutGrid, ListChecks, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import { PeekProvider } from "@/components/views/Peek";
-import { SignInScreen, SyncStatus } from "./SignIn";
-import { NAV, SETTINGS_NAV, isActive } from "./nav";
+import { NoAccessScreen, SignInScreen, SyncStatus } from "./SignIn";
+import { NAV, PEOPLE_NAV, SETTINGS_NAV, isActive } from "./nav";
 import { GlobalSearch } from "./GlobalSearch";
 import { Dropdown, IconButton, MenuItem, Toasts } from "@/components/ui/primitives";
 import { useStore } from "@/lib/store";
@@ -32,7 +32,7 @@ function Logo({ compact }: { compact?: boolean }) {
 
 function NavLinks({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { applications } = useStore();
+  const { applications, cloud } = useStore();
   const activeApps = applications.filter((a) => !["Accepted", "Rejected"].includes(a.status)).length;
 
   const link = (item: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }) => {
@@ -67,7 +67,10 @@ function NavLinks({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?:
           <div className="flex flex-col gap-0.5">{g.items.map(link)}</div>
         </div>
       ))}
-      <div className="mt-auto flex flex-col gap-0.5">{link(SETTINGS_NAV)}</div>
+      <div className="mt-auto flex flex-col gap-0.5">
+        {cloud.role === "admin" && link(PEOPLE_NAV)}
+        {link(SETTINGS_NAV)}
+      </div>
     </nav>
   );
 }
@@ -109,10 +112,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const fullBleed = pathname === "/explore";
 
   // Firebase is set up but nobody is signed in: welcome screen (or continue on this device)
-  if (hydrated && cloud.configured && cloud.status === "signed-out" && !cloud.localOnly)
+  if (hydrated && cloud.configured && (cloud.status === "signed-out" || cloud.status === "no-access"))
     return (
       <>
-        <SignInScreen cloud={cloud} />
+        {cloud.status === "no-access" ? <NoAccessScreen cloud={cloud} /> : <SignInScreen cloud={cloud} />}
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </>
     );
@@ -347,6 +350,16 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
                 </div>
               </div>
               <div className="my-1 h-px bg-line" />
+              {cloud.role === "admin" && (
+                <MenuItem
+                  onClick={() => {
+                    close();
+                    router.push("/people");
+                  }}
+                >
+                  People & invites
+                </MenuItem>
+              )}
               <MenuItem
                 onClick={() => {
                   close();
