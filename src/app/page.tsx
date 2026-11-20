@@ -51,6 +51,25 @@ export default function OverviewPage() {
         <p className="mt-3 text-[15.5px] text-fg-muted">Discover universities, academic programs and scholarships across countries.</p>
       </header>
 
+      {researched.size === 0 && applications.length === 0 && notes.length === 0 && (
+        <section className="anim-fade mb-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
+          {[
+            { n: "1", title: "Pick a country", text: "Click any country on the map, or search for one, to open its workspace.", href: "/explore", cta: "Explore the world" },
+            { n: "2", title: "Save what fits", text: "Bookmark universities, programs and scholarships to build your shortlist.", href: "/scholarships", cta: "Browse scholarships" },
+            { n: "3", title: "Track applications", text: "Add deadlines, checklists and documents — then see everything on your calendar.", href: "/applications", cta: "Open the tracker" },
+          ].map((s) => (
+            <Link key={s.n} href={s.href} className="group flex flex-col bg-bg p-5 transition-colors hover:bg-subtle">
+              <span className="tabular flex size-6 items-center justify-center rounded-full bg-accent-soft text-[12px] font-medium text-accent">{s.n}</span>
+              <span className="mt-3 text-[14px] font-medium">{s.title}</span>
+              <span className="mt-1 text-[13px] leading-relaxed text-fg-muted">{s.text}</span>
+              <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] text-accent">
+                {s.cta} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
+
       <WorldMap researched={researched} selected={selected} onSelect={onSelect} describe={describe} wheel="modifier" />
 
       {/* Statistics — a quiet strip, not a wall of cards */}
@@ -77,7 +96,20 @@ export default function OverviewPage() {
               View tracker
             </Link>
           </div>
-          <ul className="divide-y divide-line border-y border-line">
+          {deadlines.length === 0 && (
+            <p className="border-y border-line py-6 text-[13px] text-fg-muted">
+              No deadlines yet. Save a{" "}
+              <Link href="/scholarships" className="text-accent hover:underline">
+                scholarship
+              </Link>{" "}
+              or{" "}
+              <Link href="/applications" className="text-accent hover:underline">
+                track an application
+              </Link>{" "}
+              and its dates will appear here.
+            </p>
+          )}
+          <ul className={cn("divide-y divide-line border-y border-line", deadlines.length === 0 && "hidden")}>
             {deadlines.map((d) => {
               const n = daysUntil(d.date);
               return (
@@ -110,6 +142,9 @@ export default function OverviewPage() {
                 All
               </Link>
             </div>
+            {myCountries.length === 0 && (
+              <p className="text-[13px] text-fg-muted">Countries appear here as you save universities, programs or scholarships — or star a country on its page.</p>
+            )}
             <ul className="-mx-2">
               {myCountries.slice(0, 7).map((c) => (
                 <li key={c}>
@@ -133,6 +168,14 @@ export default function OverviewPage() {
                 Notebook
               </Link>
             </div>
+            {recentNotes.length === 0 && (
+              <p className="text-[13px] text-fg-muted">
+                <Link href="/notes" className="text-accent hover:underline">
+                  Write your first note
+                </Link>{" "}
+                — visa rules, costs, tips you find.
+              </p>
+            )}
             <ul className="space-y-4">
               {recentNotes.map((n) => (
                 <li key={n.id}>

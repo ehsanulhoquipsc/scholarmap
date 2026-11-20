@@ -77,6 +77,8 @@ type Store = State & {
   setCompare: (items: CompareItem[]) => void;
   setTheme: (t: Theme) => void;
   reset: () => void;
+  /** Empty workspace: catalogue only, no applications/notes/documents/saved items. */
+  clearWorkspace: () => void;
   toast: (message: string, action?: ToastAction, ms?: number) => void;
   /** Run a change and offer Undo, restoring only the listed parts of state. */
   undoable: (message: string, keys: (keyof State)[], change: () => void) => void;
@@ -253,6 +255,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toggleCompare,
       setCompare: (items) => setState((s) => ({ ...s, compare: items.slice(0, 3) })),
       setTheme: (theme) => setState((s) => ({ ...s, theme })),
+      clearWorkspace: () =>
+        setState((s) => ({
+          ...s,
+          universities: seedUniversities,
+          programs: seedPrograms,
+          scholarships: seedScholarships,
+          applications: [],
+          notes: [],
+          documents: [],
+          saved: { universities: [], programs: [], scholarships: [], countries: [] },
+          compare: [],
+        })),
       reset: () => {
         try {
           localStorage.removeItem(STORAGE_KEY);

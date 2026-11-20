@@ -21,6 +21,7 @@ import { checkAccess, type Role } from "@/lib/people";
 import { universities as seedUniversities } from "@/data/universities";
 import { programs as seedPrograms } from "@/data/programs";
 import { scholarships as seedScholarships } from "@/data/scholarships";
+import { seedApplications, seedDocuments, seedNotes } from "@/data/workspace";
 import type { SyncableState } from "@/lib/store";
 
 const CATALOGUE = ["universities", "programs", "scholarships"] as const;
@@ -40,6 +41,22 @@ const isCatalogue = (c: Coll) => (CATALOGUE as readonly string[]).includes(c);
 /** Catalogue records are only stored once you've added or edited them. */
 const shouldStore = (c: Coll, r: Rec) => !isCatalogue(c) || !!r.editedAt || !SEED_IDS.has(r.id);
 const clean = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
+
+const DEMO_IDS = new Set([...seedApplications, ...seedNotes, ...seedDocuments].map((x) => x.id));
+export const EMPTY_SAVED = { universities: [], programs: [], scholarships: [], countries: [] };
+
+/** A fresh account's starting point: the catalogue, minus all demo personal data. */
+export function cleanStart(s: SyncableState): SyncableState {
+  const mine = <T extends { id: string }>(list: T[]) => list.filter((x) => !DEMO_IDS.has(x.id));
+  return {
+    ...s,
+    applications: mine(s.applications),
+    notes: mine(s.notes),
+    documents: mine(s.documents),
+    saved: EMPTY_SAVED,
+    compare: [],
+  };
+}
 const metaOf = (s: SyncableState) => ({ saved: s.saved, compare: s.compare, theme: s.theme });
 
 export type CloudUser = { uid: string; name: string; email: string; photo?: string };
@@ -228,11 +245,16 @@ export function useCloudSync({
       const maybeInitialise = async () => {
         if (initialised.current || metaExists === null || firstSeen.size < COLLECTIONS.length) return;
         if (!metaExists) {
-          // First sign-in for this account: copy what's on this device to the cloud.
+          // New account: start with a clean workspace — the university, program and
+          // scholarship database stays, but no demo applications, notes, documents or
+          // saved items. Anything this device created itself (not demo data) is kept.
+          const clean = cleanStart(stateRef.current);
+          stateRef.current = clean;
+          setState(() => clean);
           initialised.current = true;
           lastSynced.current.clear();
           await flush();
-          toast("Your research is now saved to your Google account");
+          toast("Welcome to ScholarMap — your workspace is ready");
         } else {
           // Account already has data: it wins over this device's copy.
           setState((prev) => {

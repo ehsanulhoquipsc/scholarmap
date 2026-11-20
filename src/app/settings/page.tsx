@@ -19,7 +19,8 @@ function Row({ title, description, children }: { title: string; description: str
 }
 
 export default function SettingsPage() {
-  const { theme, setTheme, reset, toast, universities, programs, scholarships, notes, applications, documents, cloud } = useStore();
+  const { theme, setTheme, reset, clearWorkspace, toast, universities, programs, scholarships, notes, applications, documents, cloud } = useStore();
+  const signedIn = !!cloud.user;
   const [confirm, setConfirm] = useState(false);
 
   return (
@@ -60,11 +61,11 @@ export default function SettingsPage() {
 
       <h2 className="t-eyebrow mb-1 mt-10">Data</h2>
       <Row
-        title="Prototype data"
+        title={signedIn ? "Your data" : "Prototype data"}
         description={`${universities.length} universities · ${programs.length} programs · ${scholarships.length} scholarships · ${applications.length} applications · ${notes.length} notes · ${documents.length} documents`}
       >
         <Button variant="danger" onClick={() => setConfirm(true)}>
-          Reset sample data
+          {signedIn ? "Clear my workspace" : "Reset sample data"}
         </Button>
       </Row>
       <p className="mt-6 text-[12.5px] text-fg-faint">
@@ -74,8 +75,12 @@ export default function SettingsPage() {
       <Modal
         open={confirm}
         onClose={() => setConfirm(false)}
-        title="Reset sample data?"
-        description={cloud.user ? "All your records, notes, applications and documents will be replaced with the original sample data — on this device and in your account." : "All records, notes and application changes you made in this browser will be replaced with the original sample data."}
+        title={signedIn ? "Clear your workspace?" : "Reset sample data?"}
+        description={
+          signedIn
+            ? "This deletes your applications, notes, documents, saved items and any universities, programs or scholarships you added or edited — on every device signed in to your account. This can’t be undone."
+            : "All records, notes and application changes you made in this browser will be replaced with the original sample data."
+        }
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirm(false)}>
@@ -84,12 +89,13 @@ export default function SettingsPage() {
             <Button
               className="!bg-danger !text-white"
               onClick={() => {
-                reset();
+                if (signedIn) clearWorkspace();
+                else reset();
                 setConfirm(false);
-                toast("Sample data restored");
+                toast(signedIn ? "Workspace cleared" : "Sample data restored");
               }}
             >
-              Reset
+              {signedIn ? "Clear everything" : "Reset"}
             </Button>
           </>
         }
