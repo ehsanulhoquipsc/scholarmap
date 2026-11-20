@@ -36,7 +36,7 @@ function AdminPeople({ adminEmail, adminName, adminPhoto, toast }: { adminEmail:
   const [justInvited, setJustInvited] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "joined" | "invited">("all");
-  const site = typeof window !== "undefined" ? window.location.origin : "";
+  const site = publicSiteUrl();
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -219,6 +219,19 @@ function AdminPeople({ adminEmail, adminName, adminPhoto, toast }: { adminEmail:
       </p>
     </div>
   );
+}
+
+/**
+ * The address invitees should open. Invites sent while testing on localhost (or a Vercel
+ * preview URL) must still point at the live site.
+ */
+const LIVE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://scholarmap-omega.vercel.app";
+function publicSiteUrl() {
+  if (typeof window === "undefined") return LIVE_URL;
+  const { origin, hostname } = window.location;
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
+  const isPreview = hostname.endsWith(".vercel.app") && origin !== LIVE_URL;
+  return isLocal || isPreview ? LIVE_URL : origin;
 }
 
 function Avatar({ photo, label, muted }: { photo?: string; label: string; muted?: boolean }) {
