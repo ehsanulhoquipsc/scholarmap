@@ -13,7 +13,12 @@ npm install
 npm run dev -- --port 3100
 ```
 
-Open http://localhost:3100. To restore the original sample data, use
+Open http://localhost:3100.
+
+### Cloud sync (optional, free)
+With Firebase configured, you sign in with Google and your data syncs across devices and
+works offline. Without it, everything stays in the browser. Setup: [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+— copy `.env.example` to `.env.local` and add the same values in Vercel. To restore the original sample data, use
 **Settings → Reset sample data**.
 
 ## Pages

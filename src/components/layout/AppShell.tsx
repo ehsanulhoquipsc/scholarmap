@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Bell, CalendarDays, Compass, LayoutGrid, ListChecks, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import { PeekProvider } from "@/components/views/Peek";
+import { SignInScreen, SyncStatus } from "./SignIn";
 import { NAV, SETTINGS_NAV, isActive } from "./nav";
 import { GlobalSearch } from "./GlobalSearch";
 import { Dropdown, IconButton, MenuItem, Toasts } from "@/components/ui/primitives";
@@ -75,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { toasts, dismissToast, hydrated } = useStore();
+  const { toasts, dismissToast, hydrated, ready, cloud } = useStore();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -106,6 +107,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const fullBleed = pathname === "/explore";
+
+  // Firebase is set up but nobody is signed in: welcome screen (or continue on this device)
+  if (hydrated && cloud.configured && cloud.status === "signed-out" && !cloud.localOnly)
+    return (
+      <>
+        <SignInScreen cloud={cloud} />
+        <Toasts toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
 
   return (
     <PeekProvider>
@@ -147,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className={cn("flex-1 pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0", fullBleed ? "" : "px-4 pt-6 sm:px-8 sm:pt-10 lg:pb-20 xl:px-12")}>
           {/* Content waits for saved data (a few ms) so you never see sample data flash before yours */}
           <Suspense fallback={<PageSkeleton fullBleed={fullBleed} />}>
-            <PageFrame fullBleed={fullBleed} ready={hydrated}>
+            <PageFrame fullBleed={fullBleed} ready={ready}>
               {children}
             </PageFrame>
           </Suspense>
@@ -229,7 +239,8 @@ function MobileTabBar({ onMore }: { onMore: () => void }) {
 }
 
 function TopBar({ onSearch }: { onSearch: () => void }) {
-  const { applications, scholarships, saved } = useStore();
+  const { applications, scholarships, saved, cloud } = useStore();
+  const initials = (cloud.user?.name ?? "You").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const router = useRouter();
   const [read, setRead] = useState(false);
 
@@ -309,22 +320,31 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         </Dropdown>
 
         <Dropdown
-          width={220}
+          width={250}
           trigger={({ toggle }) => (
-            <button
-              onClick={toggle}
-              aria-label="Profile"
-              className="ml-1 flex size-8 items-center justify-center rounded-full bg-fg text-[11px] font-medium tracking-wide text-bg transition-opacity hover:opacity-85"
-            >
-              YO
+            <button onClick={toggle} aria-label="Account" className="relative ml-1 flex size-8 items-center justify-center rounded-full transition-opacity hover:opacity-85">
+              {cloud.user?.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={cloud.user.photo} alt="" referrerPolicy="no-referrer" className="size-8 rounded-full object-cover" />
+              ) : (
+                <span className="flex size-8 items-center justify-center rounded-full bg-fg text-[11px] font-medium tracking-wide text-bg">{initials}</span>
+              )}
+              {cloud.configured && (
+                <span className="absolute -bottom-0.5 -right-0.5">
+                  <SyncStatus cloud={cloud} compact />
+                </span>
+              )}
             </button>
           )}
         >
           {(close) => (
             <div>
-              <div className="px-2.5 pb-2 pt-2">
-                <div className="text-[13px] font-medium">You</div>
-                <div className="text-[12px] text-fg-muted">Personal workspace</div>
+              <div className="px-2.5 pb-2.5 pt-2">
+                <div className="truncate text-[13px] font-medium">{cloud.user?.name ?? "You"}</div>
+                <div className="truncate text-[12px] text-fg-muted">{cloud.user?.email ?? "Personal workspace"}</div>
+                <div className="mt-2">
+                  <SyncStatus cloud={cloud} />
+                </div>
               </div>
               <div className="my-1 h-px bg-line" />
               <MenuItem
@@ -343,6 +363,30 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
               >
                 Settings
               </MenuItem>
+              {cloud.configured && (
+                <>
+                  <div className="my-1 h-px bg-line" />
+                  {cloud.user ? (
+                    <MenuItem
+                      onClick={() => {
+                        close();
+                        void cloud.signOut();
+                      }}
+                    >
+                      Sign out
+                    </MenuItem>
+                  ) : (
+                    <MenuItem
+                      onClick={() => {
+                        close();
+                        void cloud.signIn();
+                      }}
+                    >
+                      Sign in with Google to sync
+                    </MenuItem>
+                  )}
+                </>
+              )}
             </div>
           )}
         </Dropdown>

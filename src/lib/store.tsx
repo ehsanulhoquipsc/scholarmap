@@ -6,6 +6,7 @@ import { programs as seedPrograms } from "@/data/programs";
 import { scholarships as seedScholarships } from "@/data/scholarships";
 import { seedApplications, seedDocuments, seedNotes, seedSaved } from "@/data/workspace";
 import type { Application, CompareItem, DocumentRecord, Note, Program, Scholarship, University } from "@/lib/types";
+import { type Cloud, useCloudSync } from "@/lib/cloudSync";
 
 export type SavedKind = "universities" | "programs" | "scholarships" | "countries";
 
@@ -22,6 +23,8 @@ type State = {
   compare: CompareItem[];
   theme: Theme;
 };
+
+export type SyncableState = State;
 
 const initialState: State = {
   universities: seedUniversities,
@@ -56,6 +59,9 @@ export const SAMPLE_IDS = new Set<string>([
 
 type Store = State & {
   hydrated: boolean;
+  /** Saved data (and, when signed in, your cloud data) has loaded. */
+  ready: boolean;
+  cloud: Cloud;
   toggleSaved: (kind: SavedKind, id: string) => void;
   isSaved: (kind: SavedKind, id: string) => boolean;
   upsertUniversity: (u: University) => void;
@@ -142,6 +148,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener("change", apply);
   }, [state.theme, hydrated]);
 
+  const resetLocal = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
+    setState(initialState);
+  }, []);
+
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   const toast = useCallback(
@@ -200,10 +213,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [toast, undoable],
   );
 
+  const { cloud, ready } = useCloudSync({ state, setState, hydrated, toast, resetLocal });
+
   const value = useMemo<Store>(
     () => ({
       ...state,
       hydrated,
+      ready,
+      cloud,
       toasts,
       toast,
       undoable,
@@ -243,7 +260,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setState(initialState);
       },
     }),
-    [state, hydrated, toasts, toast, undoable, dismissToast, toggleSaved, toggleCompare],
+    [state, hydrated, ready, cloud, toasts, toast, undoable, dismissToast, toggleSaved, toggleCompare],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
