@@ -415,7 +415,15 @@ export function useCloudSync({
       const code = (e as { code?: string }).code ?? "";
       if (code === "auth/popup-blocked") return signInWithRedirect(fb.auth, provider);
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
-      toast(code === "auth/unauthorized-domain" ? "This web address isn't allowed in Firebase yet (Authentication → Settings → Authorized domains)." : "Sign-in failed. Please try again.");
+      const messages: Record<string, string> = {
+        "auth/unauthorized-domain": "This web address isn't allowed in Firebase yet (Authentication → Settings → Authorized domains).",
+        "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Sign-in is misconfigured: the Firebase API key on this site is wrong.",
+        "auth/invalid-api-key": "Sign-in is misconfigured: the Firebase API key on this site is wrong.",
+        "auth/network-request-failed": "No connection to Google. Check your internet and try again.",
+        "auth/operation-not-allowed": "Google sign-in isn't enabled in Firebase (Authentication → Sign-in method).",
+      };
+      console.error("Sign-in failed", e);
+      toast(messages[code] ?? `Sign-in failed (${code || "unknown error"}). Please try again.`);
     }
   }, [toast]);
 
